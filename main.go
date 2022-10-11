@@ -7,6 +7,7 @@ import (
 	"runtime"
 
 	"github.com/remeh/diago/pprof"
+	"github.com/remeh/diago/proto"
 )
 
 func main() {
@@ -23,7 +24,7 @@ func main() {
 
 	var pprofProfile *pprof.Profile
 
-	if pprofProfile, err = readProtoFile(config.File); err != nil {
+	if pprofProfile, err = proto.ReadProtoFile(config.File); err != nil {
 		fmt.Println("err:", err)
 		os.Exit(-1)
 	}
@@ -33,4 +34,8 @@ func main() {
 
 	gui := NewGUI(pprofProfile)
 	gui.OpenWindow()
+}
+
+func ReadProtoFile(s string) {
+	panic("unimplemented")
 }

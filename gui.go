@@ -11,30 +11,21 @@ import (
 	"github.com/dustin/go-humanize"
 
 	"github.com/remeh/diago/pprof"
+	"github.com/remeh/diago/profile"
+	prof "github.com/remeh/diago/profile"
 )
 
 type GUI struct {
 	// data
 	pprofProfile *pprof.Profile
-	profile      *Profile
-	tree         *FunctionsTree
+	profile      *prof.Profile
+	tree         *prof.FunctionsTree
 
 	// ui options
-	mode                sampleMode
+	mode                prof.SampleMode
 	searchField         string
 	aggregateByFunction bool
 }
-
-type sampleMode string
-
-var (
-	// use this when you don't really know the mode
-	// to use to read the profile.
-	ModeDefault   sampleMode = ""
-	ModeCpu       sampleMode = "cpu"
-	ModeHeapAlloc sampleMode = "heap-alloc"
-	ModeHeapInuse sampleMode = "heap-inuse"
-)
 
 func NewGUI(profile *pprof.Profile) *GUI {
 	// init the base GUI object and load the profile
@@ -50,13 +41,13 @@ func NewGUI(profile *pprof.Profile) *GUI {
 	// or the ModeHeapAlloc.
 	// ----------------------
 
-	switch ReadProfileType(profile) {
+	switch prof.ReadProfileType(profile) {
 	case "space":
-		g.mode = ModeHeapAlloc
+		g.mode = prof.ModeHeapAlloc
 	case "cpu":
-		g.mode = ModeCpu
+		g.mode = prof.ModeCpu
 	default:
-		g.mode = ModeDefault
+		g.mode = prof.ModeDefault
 	}
 
 	return g
@@ -72,12 +63,12 @@ func (g *GUI) onAggregationClick() {
 }
 
 func (g *GUI) onAllocated() {
-	g.mode = ModeHeapAlloc
+	g.mode = prof.ModeHeapAlloc
 	g.reloadProfile()
 }
 
 func (g *GUI) onInuse() {
-	g.mode = ModeHeapInuse
+	g.mode = prof.ModeHeapInuse
 	g.reloadProfile()
 }
 
@@ -89,7 +80,7 @@ func (g *GUI) reloadProfile() {
 	// read the pprof profile
 	// ----------------------
 
-	profile, err := NewProfile(g.pprofProfile, g.mode)
+	profile, err := prof.NewProfile(g.pprofProfile, g.mode)
 	if err != nil {
 		fmt.Println("err:", err)
 		os.Exit(-1)
@@ -99,7 +90,7 @@ func (g *GUI) reloadProfile() {
 	// rebuild the displayed tree
 	// ----------------------
 
-	g.tree = profile.BuildTree(config.File, g.aggregateByFunction, g.searchField)
+	g.tree = g.profile.BuildTree(config.File, g.aggregateByFunction, g.searchField)
 }
 
 func (g *GUI) windowLoop() {
@@ -130,11 +121,11 @@ func (g *GUI) toolbox() *giu.RowWidget {
 
 	// in heap mode, offer the two modes
 	// ----------------------
-	if g.mode == ModeHeapAlloc || g.mode == ModeHeapInuse {
+	if g.mode == prof.ModeHeapAlloc || g.mode == prof.ModeHeapInuse {
 		widgets = append(widgets,
-			giu.RadioButton("allocated", g.mode == ModeHeapAlloc).OnChange(g.onAllocated))
+			giu.RadioButton("allocated", g.mode == prof.ModeHeapAlloc).OnChange(g.onAllocated))
 		widgets = append(widgets,
-			giu.RadioButton("inuse", g.mode == ModeHeapInuse).OnChange(g.onInuse))
+			giu.RadioButton("inuse", g.mode == prof.ModeHeapInuse).OnChange(g.onInuse))
 	}
 
 	return giu.Row(
@@ -142,18 +133,18 @@ func (g *GUI) toolbox() *giu.RowWidget {
 	)
 }
 
-func (g *GUI) treeFromFunctionsTree(tree *FunctionsTree) giu.Layout {
+func (g *GUI) treeFromFunctionsTree(tree *prof.FunctionsTree) giu.Layout {
 	// generate the header
 	// ----------------------
 
 	var text string
 	switch g.mode {
-	case ModeCpu:
-		text = fmt.Sprintf("%s - total sampling duration: %s - total capture duration %s", tree.name, time.Duration(g.profile.TotalSampling).String(), g.profile.CaptureDuration.String())
-	case ModeHeapAlloc:
-		text = fmt.Sprintf("%s - total allocated memory: %s", tree.name, humanize.IBytes(g.profile.TotalSampling))
-	case ModeHeapInuse:
-		text = fmt.Sprintf("%s - total in-use memory: %s", tree.name, humanize.IBytes(g.profile.TotalSampling))
+	case prof.ModeCpu:
+		text = fmt.Sprintf("%s - total sampling duration: %s - total capture duration %s", tree.Name, time.Duration(g.profile.TotalSampling).String(), g.profile.CaptureDuration.String())
+	case profile.ModeHeapAlloc:
+		text = fmt.Sprintf("%s - total allocated memory: %s", tree.Name, humanize.IBytes(g.profile.TotalSampling))
+	case profile.ModeHeapInuse:
+		text = fmt.Sprintf("%s - total in-use memory: %s", tree.Name, humanize.IBytes(g.profile.TotalSampling))
 	}
 
 	// start generating the tree
@@ -161,23 +152,23 @@ func (g *GUI) treeFromFunctionsTree(tree *FunctionsTree) giu.Layout {
 
 	return giu.Layout{
 		giu.Row(
-			giu.TreeNode(text).Flags(giu.TreeNodeFlagsNone | giu.TreeNodeFlagsFramed | giu.TreeNodeFlagsDefaultOpen).Layout(g.treeNodeFromFunctionsTreeNode(tree.root)),
+			giu.TreeNode(text).Flags(giu.TreeNodeFlagsNone | giu.TreeNodeFlagsFramed | giu.TreeNodeFlagsDefaultOpen).Layout(g.treeNodeFromFunctionsTreeNode(tree.Root)),
 		),
 	}
 }
 
-func (g *GUI) treeNodeFromFunctionsTreeNode(node *treeNode) giu.Layout {
+func (g *GUI) treeNodeFromFunctionsTreeNode(node *prof.TreeNode) giu.Layout {
 	if node == nil {
 		return nil
 	}
 	rv := giu.Layout{}
-	for _, child := range node.children {
-		if !child.visible {
+	for _, child := range node.Children {
+		if !child.Visible {
 			continue
 		}
 
 		flags := giu.TreeNodeFlagsSpanAvailWidth
-		if child.isLeaf() {
+		if child.IsLeaf() {
 			flags |= giu.TreeNodeFlagsLeaf
 		}
 
@@ -189,7 +180,7 @@ func (g *GUI) treeNodeFromFunctionsTreeNode(node *treeNode) giu.Layout {
 		// ----------------------
 
 		rv = append(rv, giu.Row(
-			giu.ProgressBar(float32(child.percent)/100).Size(90, 0).Overlayf("%.3f%%", child.percent),
+			giu.ProgressBar(float32(child.Percent)/100).Size(90, 0).Overlayf("%.3f%%", child.Percent),
 			giu.Tooltip(tooltip),
 			giu.TreeNode(lineText).Flags(flags).Layout(g.treeNodeFromFunctionsTreeNode(child)),
 		),
@@ -199,19 +190,19 @@ func (g *GUI) treeNodeFromFunctionsTreeNode(node *treeNode) giu.Layout {
 	return rv
 }
 
-func (g *GUI) texts(node *treeNode) (value string, self string, tooltip string, lineText string) {
+func (g *GUI) texts(node *prof.TreeNode) (value string, self string, tooltip string, lineText string) {
 	if g.profile.Type == "cpu" {
-		value = time.Duration(node.value).String()
-		self = time.Duration(node.self).String()
+		value = time.Duration(node.Value).String()
+		self = time.Duration(node.Self).String()
 		tooltip = fmt.Sprintf("%s of %s\nself: %s", value, time.Duration(g.profile.TotalSampling).String(), self)
 	} else {
-		value = humanize.IBytes(uint64(node.value))
-		self = humanize.IBytes(uint64(node.self))
+		value = humanize.IBytes(uint64(node.Value))
+		self = humanize.IBytes(uint64(node.Self))
 		tooltip = fmt.Sprintf("%s of %s\nself: %s", value, humanize.IBytes(g.profile.TotalSampling), self)
 	}
-	lineText = fmt.Sprintf("%s %s:%d - %s - self: %s", node.function.Name, path.Base(node.function.File), node.function.LineNumber, value, self)
+	lineText = fmt.Sprintf("%s %s:%d - %s - self: %s", node.Function.Name, path.Base(node.Function.File), node.Function.LineNumber, value, self)
 	if g.aggregateByFunction {
-		lineText = fmt.Sprintf("%s %s - %s - self: %s", node.function.Name, path.Base(node.function.File), value, self)
+		lineText = fmt.Sprintf("%s %s - %s - self: %s", node.Function.Name, path.Base(node.Function.File), value, self)
 	}
 	return value, self, tooltip, lineText
 }

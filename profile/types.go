@@ -1,4 +1,4 @@
-package main
+package profile
 
 import "fmt"
 
@@ -20,11 +20,22 @@ type Location struct {
 }
 
 type Function struct {
-	Name       string
-	File       string
-	LineNumber uint64
-	Self       int64
+	Name       string `json:"name"`
+	File       string `json:"file"`
+	LineNumber uint64 `json:"lineNumber"`
+	Self       int64  `json:"self"`
 }
+
+type SampleMode string
+
+var (
+	// use this when you don't really know the mode
+	// to use to read the profile.
+	ModeDefault   SampleMode = ""
+	ModeCpu       SampleMode = "cpu"
+	ModeHeapAlloc SampleMode = "heap-alloc"
+	ModeHeapInuse SampleMode = "heap-inuse"
+)
 
 func (f Function) String(lineNumber bool) string {
 	if lineNumber {

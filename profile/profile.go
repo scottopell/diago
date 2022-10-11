@@ -1,4 +1,4 @@
-package main
+package profile
 
 import (
 	"fmt"
@@ -21,7 +21,7 @@ type Profile struct {
 	stringsMap             StringsMap
 }
 
-func NewProfile(p *pprof.Profile, mode sampleMode) (*Profile, error) {
+func NewProfile(p *pprof.Profile, mode SampleMode) (*Profile, error) {
 	// start by building some maps because everything
 	// is indexed in various maps.
 	// ----------------------
@@ -61,7 +61,7 @@ func ReadProfileType(p *pprof.Profile) string {
 }
 
 func readProfile(p *pprof.Profile, stringsMap StringsMap, functionsMapByLocation ManyFunctionsMap,
-	locationsMap LocationsMap, mode sampleMode) *Profile {
+	locationsMap LocationsMap, mode SampleMode) *Profile {
 
 	var samples Samples
 	var idx int
@@ -131,7 +131,7 @@ func (p *Profile) BuildTree(treeName string, aggregateByFunction bool, searchFie
 
 	// fill the tree
 	for _, s := range p.Samples {
-		node := tree.root
+		node := tree.Root
 		for _, f := range s.Functions {
 			if s.Value == 0 {
 				continue
@@ -140,8 +140,8 @@ func (p *Profile) BuildTree(treeName string, aggregateByFunction bool, searchFie
 		}
 	}
 
-	if tree.root != nil {
-		tree.root.filter(searchField)
+	if tree.Root != nil {
+		tree.Root.filter(searchField)
 	}
 
 	tree.sort()

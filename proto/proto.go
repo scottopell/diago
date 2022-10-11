@@ -1,4 +1,4 @@
-package main
+package proto
 
 import (
 	"compress/gzip"
@@ -10,7 +10,7 @@ import (
 	"github.com/remeh/diago/pprof"
 )
 
-func readProtoFile(filename string) (*pprof.Profile, error) {
+func ReadProtoFile(filename string) (*pprof.Profile, error) {
 	f, err := os.Open(filename)
 	if err != nil {
 		return nil, fmt.Errorf("readProtoFile: os.Open: %v", err)
